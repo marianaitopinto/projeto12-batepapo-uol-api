@@ -22,11 +22,6 @@ const participantSchema = joi.object({
     name: joi.string().required(),
 });
 
-const messagesSchema = joi.object({
-    to: joi.string().required(),
-    text: joi.string().required(),
-    type: joi.any().valid('message', 'private_message'),
-});
 
 app.post('/participants', async (req, res) => {
     const newParticipant = req.body;
@@ -64,11 +59,21 @@ app.get('/participants', async (req, res) => {
 
 app.post('/messages', async (req, res) => {
     const { user } = req.headers;
+    const users = await db.collection('participants').find({}).toArray();
+    const loggedUsers = users.map(user => user.name);
+
+    const messagesSchema = joi.object({
+        from: joi.string().valid(...loggedUsers).required(),
+        to: joi.string().required(),
+        text: joi.string().required(),
+        type: joi.string().valid('message', 'private_message').required(),
+    });
+
     const newMessage = {
         ...req.body,
         time: dayjs().format('HH:mm:ss'),
-        from: user,
     };
+    
     const validation = messagesSchema.validate(newMessage, { abortEarly: false });
 
     if (validation.error) {
@@ -83,5 +88,15 @@ app.post('/messages', async (req, res) => {
         res.sendStatus(500);
     }
 }); 
+
+app.get('/messages', async (req, res) => {
+    const limit = parseInt(req.query.limit);
+    try {
+        const messages = await db.collection('messages').find().toArray();
+        res.send(messages);
+    } catch {
+        res.sendStatus(500);
+    }
+});
 
 app.listen(5000, () => console.log(chalk.bold.magenta("Loading")));
