@@ -22,6 +22,12 @@ const participantSchema = joi.object({
     name: joi.string().required(),
 });
 
+const messagesSchema = joi.object({
+    to: joi.string().required(),
+    text: joi.string().required(),
+    type: joi.any().valid('message', 'private_message'),
+});
+
 app.post('/participants', async (req, res) => {
     const newParticipant = req.body;
     const time = dayjs().format('HH:mm:ss');
@@ -55,5 +61,27 @@ app.get('/participants', async (req, res) => {
         res.sendStatus(500);
     }
 });
+
+app.post('/messages', async (req, res) => {
+    const { user } = req.headers;
+    const newMessage = {
+        ...req.body,
+        time: dayjs().format('HH:mm:ss'),
+        from: user,
+    };
+    const validation = messagesSchema.validate(newMessage, { abortEarly: false });
+
+    if (validation.error) {
+        res.status(422).send(validation.error.details);
+        return;
+    }
+
+    try {
+        await db.collection('messages').insertOne(...newMessage);
+        res.sendStatus(201);
+    } catch {
+        res.sendStatus(500);
+    }
+}); 
 
 app.listen(5000, () => console.log(chalk.bold.magenta("Loading")));
