@@ -18,15 +18,15 @@ mongoClient.connect(() => {
     db = mongoClient.db('UOL');
 });
 
-const participantSchema = joi.object({
-    name: joi.string().required(),
-});
-
-
 app.post('/participants', async (req, res) => {
     const newParticipant = req.body;
     const time = dayjs().format('HH:mm:ss');
     const from = req.body.name;
+
+    const participantSchema = joi.object({
+        name: joi.string().required(),
+    });
+
     const validation = participantSchema.validate(newParticipant, { abortEarly: false });
 
     if (validation.error) {
@@ -43,7 +43,7 @@ app.post('/participants', async (req, res) => {
 
     try {
         await db.collection('participants').insertOne({ ...newParticipant, lastStatus: Date.now() })
-        await db.collection('messages').insertOne({from, to: 'Todos', text: 'entra na sala...', type: 'status', time});
+        await db.collection('messages').insertOne({ from, to: 'Todos', text: 'entra na sala...', type: 'status', time });
         res.sendStatus(201);
     } catch {
         res.sendStatus(500);
@@ -61,6 +61,7 @@ app.get('/participants', async (req, res) => {
 
 app.post('/messages', async (req, res) => {
     const { user } = req.headers;
+    const time = dayjs().format('HH:mm:ss');
     const users = await db.collection('participants').find({}).toArray();
     const loggedUsers = users.map(user => user.name);
 
@@ -72,10 +73,10 @@ app.post('/messages', async (req, res) => {
     });
 
     const newMessage = {
+        from: user,
         ...req.body,
-        time: dayjs().format('HH:mm:ss'),
     };
-    
+
     const validation = messagesSchema.validate(newMessage, { abortEarly: false });
 
     if (validation.error) {
@@ -84,12 +85,12 @@ app.post('/messages', async (req, res) => {
     }
 
     try {
-        await db.collection('messages').insertOne(...newMessage);
+        await db.collection('messages').insertOne({...newMessage, time});
         res.sendStatus(201);
     } catch {
         res.sendStatus(500);
     }
-}); 
+});
 
 app.get('/messages', async (req, res) => {
     const limit = parseInt(req.query.limit);
