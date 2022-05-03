@@ -85,7 +85,7 @@ app.post('/messages', async (req, res) => {
     }
 
     try {
-        await db.collection('messages').insertOne({...newMessage, time});
+        await db.collection('messages').insertOne({ ...newMessage, time });
         res.sendStatus(201);
     } catch {
         res.sendStatus(500);
@@ -94,9 +94,17 @@ app.post('/messages', async (req, res) => {
 
 app.get('/messages', async (req, res) => {
     const limit = parseInt(req.query.limit);
+    const { user } = req.headers;
+
     try {
-        const messages = await db.collection('messages').find().toArray();
-        res.send(messages);
+        const messages = await db.collection('messages').find({ $or: [{ from: user }, { to: user }, { to: 'Todos' }] }).toArray();
+
+        if (limit) {
+            res.send(messages.slice(- limit));
+            return;
+        } else {
+            res.send(messages);
+        }
     } catch {
         res.sendStatus(500);
     }
