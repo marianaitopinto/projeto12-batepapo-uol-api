@@ -155,12 +155,56 @@ app.delete('/messages/:messageId', async (req, res) => {
     }
 });
 
+app.put('/messages/:messageId', async (req, res) => {
+    const { user } = req.headers;
+    const { messageId } = req.params;
+    const users = await db.collection('participants').find({}).toArray();
+    const loggedUsers = users.map(user => user.name);
+
+    const messageSchema = joi.object({
+        from: joi.string().valid(...loggedUsers).required(),
+        to: joi.string().required(),
+        text: joi.string().required(),
+        type: joi.string().valid('message', 'private_message').required(),
+    });
+
+    const message = {
+        from: user,
+        ...req.body,
+    };
+
+    const validation = messageSchema.validate(message, { abortEarly: false });
+
+    if (validation.error) {
+        res.status(422).send(validation.error.details);
+        return;
+    }
+
+    const checkIdMessage = await db.collection("messages").findOne({ _id: new ObjectId(messageId) });
+    if (!checkIdMessage) {
+        res.status(404).send(validation.error.details);
+        return;
+    };
+
+    if (checkIdMessage.from !== user) {
+        res.status(401).send(validation.error.details);
+        return;
+    }
+
+    try {
+        await db.collection('messages').updateOne({ _id: new ObjectId(messageId) }, { $set: message });
+    } catch {
+        res.sendStatus(500);
+    }
+
+});
+
 setInterval(async () => {
     try {
         const participants = await db.collection('participants').find().toArray();
 
         participants.forEach(async participant => {
-            if (Date.now() - participant.lastStatus > 100000) {
+            if (Date.now() - participant.lastStatus > 10000) {
                 await db.collection('participants').deleteOne({ _id: participant._id });
                 await db.collection('messages').insertOne({
                     from: participant.name,
