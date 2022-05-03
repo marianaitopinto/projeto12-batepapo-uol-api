@@ -110,4 +110,25 @@ app.get('/messages', async (req, res) => {
     }
 });
 
+app.post('/status', async (req, res) => {
+    const { user } = req.headers;
+
+    try {
+        const loggedUser = await db.collection('participants').findOne({ name: user });
+
+        if (!loggedUser) {
+            res.sendStatus(404);
+            return;
+        }
+
+        await db.collection('participants').updateOne(
+            { _id: loggedUser._id },
+            { $set: { lastStatus: Date.now() } }
+        );
+        response.sendStatus(200);
+    } catch {
+        res.sendStatus(500);
+    }
+});
+
 app.listen(5000, () => console.log(chalk.bold.magenta("Loading")));
