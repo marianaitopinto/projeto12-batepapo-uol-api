@@ -131,4 +131,26 @@ app.post('/status', async (req, res) => {
     }
 });
 
+setInterval(async () => {
+
+    try {
+    const participants = await db.collection('participants').find().toArray();
+  
+    participants.forEach(async participant => {
+      if (Date.now() - participant.lastStatus > 10000) {
+        await db.collection('participants').deleteOne({ _id: participant._id });
+        await db.collection('messages').insertOne({
+          from: participant.name,
+          to: "Todos",
+          text: "sai da sala...",
+          type: "status",
+          time: dayjs().format('HH:mm:ss')
+        });
+      }
+    });
+  } catch (e) {
+    console.log(chalk.red('Erro ao atualizar status', e));
+  }
+}, 15000);
+
 app.listen(5000, () => console.log(chalk.bold.magenta("Loading")));
