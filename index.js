@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import dotenv from "dotenv";
 import joi from 'joi';
 import dayjs from 'dayjs';
@@ -134,9 +134,10 @@ app.post('/status', async (req, res) => {
 app.delete('/messages/:messageId', async (req, res) => {
     const { user } = req.headers;
     const { messageId } = req.params;
+    console.log(messageId)
 
     try {
-        const message = await db.collection('messages').findOne({ _id: new ObjectId(messageId) });
+        const message = await db.collection('messages').findOne({ _id: ObjectId(messageId) });
 
         if (!message) {
             res.sendStatus(404);
@@ -148,10 +149,11 @@ app.delete('/messages/:messageId', async (req, res) => {
             return;
         }
 
-        await db.collection('messages').deleteOne({ _id: new ObjectId(messageId) });
+        await db.collection('messages').deleteOne({ _id: ObjectId(messageId) });
         res.sendStatus(200);
-    } catch {
-        res.sendStatus(500);
+    } catch (err) {
+        console.log(err)
+        res.sendStatus(500)
     }
 });
 
@@ -204,7 +206,7 @@ setInterval(async () => {
         const participants = await db.collection('participants').find().toArray();
 
         participants.forEach(async participant => {
-            if (Date.now() - participant.lastStatus > 10000) {
+            if (Date.now() - participant.lastStatus > 100000) {
                 await db.collection('participants').deleteOne({ _id: participant._id });
                 await db.collection('messages').insertOne({
                     from: participant.name,
