@@ -125,32 +125,55 @@ app.post('/status', async (req, res) => {
             { _id: loggedUser._id },
             { $set: { lastStatus: Date.now() } }
         );
-        response.sendStatus(200);
+        res.sendStatus(200);
+    } catch {
+        res.sendStatus(500);
+    }
+});
+
+app.delete('/messages/:messageId', async (req, res) => {
+    const { user } = req.headers;
+    const { messageId } = req.params;
+
+    try {
+        const message = await db.collection('messages').findOne({ _id: new ObjectId(messageId) });
+
+        if (!message) {
+            res.sendStatus(404);
+            return;
+        }
+
+        if (message.from !== user) {
+            res.sendStatus(401);
+            return;
+        }
+
+        await db.collection('messages').deleteOne({ _id: new ObjectId(messageId) });
+        res.sendStatus(200);
     } catch {
         res.sendStatus(500);
     }
 });
 
 setInterval(async () => {
-
     try {
-    const participants = await db.collection('participants').find().toArray();
-  
-    participants.forEach(async participant => {
-      if (Date.now() - participant.lastStatus > 10000) {
-        await db.collection('participants').deleteOne({ _id: participant._id });
-        await db.collection('messages').insertOne({
-          from: participant.name,
-          to: "Todos",
-          text: "sai da sala...",
-          type: "status",
-          time: dayjs().format('HH:mm:ss')
+        const participants = await db.collection('participants').find().toArray();
+
+        participants.forEach(async participant => {
+            if (Date.now() - participant.lastStatus > 100000) {
+                await db.collection('participants').deleteOne({ _id: participant._id });
+                await db.collection('messages').insertOne({
+                    from: participant.name,
+                    to: "Todos",
+                    text: "sai da sala...",
+                    type: "status",
+                    time: dayjs().format('HH:mm:ss')
+                });
+            }
         });
-      }
-    });
-  } catch (e) {
-    console.log(chalk.red('Erro ao atualizar status', e));
-  }
+    } catch (e) {
+        console.log(chalk.red('Erro ao atualizar status', e));
+    }
 }, 15000);
 
 app.listen(5000, () => console.log(chalk.bold.magenta("Loading")));
